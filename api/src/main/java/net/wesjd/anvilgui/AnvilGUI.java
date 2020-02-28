@@ -9,8 +9,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -202,7 +204,11 @@ public class AnvilGUI {
 
 		@EventHandler
 		public void onInventoryClick(InventoryClickEvent event) {
-			if (event.getInventory().equals(inventory) && event.getRawSlot() < 3) {
+			if (
+				((event.getInventory().equals(inventory)) && (event.getRawSlot() < 3)) ||
+				(event.getAction().equals(InventoryAction.MOVE_TO_OTHER_INVENTORY)) ||
+				((event.getRawSlot() < 3) && ((event.getAction().equals(InventoryAction.PLACE_ALL)) || (event.getAction().equals(InventoryAction.PLACE_ONE)) || (event.getAction().equals(InventoryAction.PLACE_SOME)) || (event.getCursor() != null)))
+			){
 				event.setCancelled(true);
 				final Player clicker = (Player) event.getWhoClicked();
 				if (event.getRawSlot() == Slot.OUTPUT) {
@@ -217,6 +223,18 @@ public class AnvilGUI {
 						inventory.setItem(Slot.INPUT_LEFT, clicked);
 					} else {
 						closeInventory();
+					}
+				}
+			}
+		}
+
+		@EventHandler
+		public void onInventoryDrag(InventoryDragEvent event) {
+			if (event.getInventory().equals(inventory)) {
+				for (int slot : Slot.values()) {
+					if (event.getRawSlots().contains(slot)) {
+						event.setCancelled(true);
+						break;
 					}
 				}
 			}
@@ -414,6 +432,8 @@ public class AnvilGUI {
 	 */
 	public static class Slot {
 
+		private static final int[] values = new int[] {Slot.INPUT_LEFT, Slot.INPUT_RIGHT, Slot.OUTPUT};
+
 		/**
 		 * The slot on the far left, where the first input is inserted. An {@link ItemStack} is always inserted
 		 * here to be renamed
@@ -429,6 +449,13 @@ public class AnvilGUI {
 		 */
 		public static final int OUTPUT = 2;
 
+		/**
+		 * Get all anvil slot values
+		 * @return The array containing all possible anvil slots
+		 */
+		public static int[] values() {
+			return values;
+		}
 	}
 
 }
