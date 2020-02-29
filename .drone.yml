@@ -4,7 +4,7 @@ type: docker
 
 steps:
   - name: create settings.xml
-    image: md5lukas/drone-mvn-settimngs
+    image: md5lukas/drone-mvn-settings
     settings:
       serverSecrets:
         from_secret: maven_server_secrets
