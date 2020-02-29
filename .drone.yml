@@ -8,10 +8,6 @@ steps:
     settings:
       serverSecrets:
         from_secret: maven_server_secrets
-  - name: test
-    image: maven:latest
-    commands:
-      - mvn compile -B -s settings.xml
   - name: deploy
     image: maven:latest
     commands:
