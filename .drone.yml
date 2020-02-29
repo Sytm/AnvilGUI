@@ -1,0 +1,22 @@
+kind: pipeline
+name: default
+type: docker
+
+steps:
+  - name: create settings.xml
+    image: md5lukas/drone-mvn-settimngs
+    settings:
+      serverSecrets:
+        from_secret: maven_server_secrets
+  - name: test
+    image: maven:latest
+    commands:
+      - mvn compile -B -s settings.xml
+  - name: deploy
+    image: maven:latest
+    commands:
+      - mvn deploy -B -s settings.xml
+
+trigger:
+  event:
+    - push
