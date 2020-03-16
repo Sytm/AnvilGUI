@@ -1,5 +1,5 @@
 kind: pipeline
-name: default
+name: deploy
 type: docker
 
 steps:
@@ -15,4 +15,21 @@ steps:
 
 trigger:
   event:
-    - push
+    include:
+      - push
+    exclude:
+      - pull_request
+---
+kind: pipeline
+name: test-only
+type: docker
+
+steps:
+  - name: test
+    image: maven:latest
+    commands:
+      - mvn package -B
+
+trigger:
+  event:
+    - pull_request
