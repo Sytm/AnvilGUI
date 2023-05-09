@@ -11,13 +11,15 @@ import org.bukkit.Bukkit;
  */
 public class VersionMatcher {
 
+    private VersionMatcher() {}
+
     /**
      * Matches the server version to it's {@link VersionWrapper}
      *
      * @return The {@link VersionWrapper} for this server
      * @throws IllegalStateException If the version wrapper failed to be instantiated or is unable to be found
      */
-    public VersionWrapper match() {
+    public static VersionWrapper match() {
         final String serverVersion = Bukkit.getServer()
                 .getClass()
                 .getPackage()

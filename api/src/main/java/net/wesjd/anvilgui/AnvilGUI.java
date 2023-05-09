@@ -40,7 +40,7 @@ public class AnvilGUI {
     /**
      * The local {@link VersionWrapper} object for the server's version
      */
-    private static final VersionWrapper WRAPPER = new VersionMatcher().match();
+    private static final VersionWrapper WRAPPER = VersionMatcher.match();
 
     /**
      * The variable containing an item with air. Used when the item would be null.
@@ -317,6 +317,12 @@ public class AnvilGUI {
 
     /** A builder class for an {@link AnvilGUI} object */
     public static class Builder {
+
+        /**
+         * Create new Builder.
+         * {@link #plugin(Plugin)} and {@link #onClick(BiFunction)} are required values.
+         */
+        public Builder() {}
 
         /** An {@link Executor} that executes tasks on the main server thread */
         private Executor mainThreadExecutor;
@@ -669,6 +675,9 @@ public class AnvilGUI {
      */
     @Deprecated
     public static class Response {
+
+        private Response() {}
+
         /**
          * Returns an {@link Response} object for when the anvil GUI is to close
          * @return An {@link Response} object for when the anvil GUI is to display text to the user
@@ -705,6 +714,8 @@ public class AnvilGUI {
      * Class wrapping the magic constants of slot numbers in an anvil GUI
      */
     public static class Slot {
+
+        private Slot() {}
 
         private static final int[] values = new int[] {Slot.INPUT_LEFT, Slot.INPUT_RIGHT, Slot.OUTPUT};
 

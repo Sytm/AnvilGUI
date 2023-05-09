@@ -1,0 +1,4 @@
+[plugins]
+shadow = { id = "com.github.johnrengelman.shadow", version = "8.+" }
+spotless = { id = "com.diffplug.spotless", version = "6.+" }
+runPaper = { id = "xyz.jpenilla.run-paper", version = "2.1.0" }
