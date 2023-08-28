@@ -1,6 +1,5 @@
 package net.wesjd.anvilgui.testplugin;
 
-
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class TestPlugin extends JavaPlugin {

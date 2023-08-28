@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -19,7 +20,7 @@ public class AnvilGUICommand implements CommandExecutor {
     private final AtomicInteger asyncCounter = new AtomicInteger();
     private final TestPlugin plugin;
 
-    private final Map<String, Map.Entry<String, BiConsumer<AnvilGUI.Builder, String>>> builderModifier =
+    private final Map<String, BuilderModifier> builderModifier =
             new HashMap<>();
 
     public AnvilGUICommand(TestPlugin plugin) {
@@ -27,44 +28,44 @@ public class AnvilGUICommand implements CommandExecutor {
 
         builderModifier.put(
                 "preventclose",
-                new AbstractMap.SimpleEntry<>("preventclose", (builder, arg) -> builder.preventClose()));
-        builderModifier.put("title", new AbstractMap.SimpleEntry<>("title=Some-Text", AnvilGUI.Builder::title));
+                new BuilderModifier("preventclose", (builder, arg) -> builder.preventClose()));
+        builderModifier.put("title", new BuilderModifier("title=Some-Text", AnvilGUI.Builder::title));
         builderModifier.put(
-                "rainbowTitle",
-                new AbstractMap.SimpleEntry<>(
-                        "rainbowTitle",
-                        (builder, arg) -> builder.jsonTitle(
-                                "{\"extra\":[{\"color\":\"#FF0000\",\"text\":\"R\"},{\"color\":\"#FFDA00\",\"text\":\"a\"},{\"color\":\"#48FF00\",\"text\":\"i\"},{\"color\":\"#00FF91\",\"text\":\"n\"},{\"color\":\"#0091FF\",\"text\":\"b\"},{\"color\":\"#4800FF\",\"text\":\"o\"},{\"color\":\"#FF00DA\",\"text\":\"w\"}],\"text\":\"\"}")));
+                "rainbowtitle",
+                new BuilderModifier(
+                        "rainbowtitle",
+                        (builder, arg) ->
+                                builder.title(MiniMessage.miniMessage().deserialize("<rainbow>Rainbow Title"))));
         builderModifier.put(
-                "text", new AbstractMap.SimpleEntry<>("text=Some-Text-for-the-item", AnvilGUI.Builder::text));
+                "text", new BuilderModifier("text=Some-Text-for-the-item", AnvilGUI.Builder::text));
         builderModifier.put(
                 "itemleft",
-                new AbstractMap.SimpleEntry<>(
+                new BuilderModifier(
                         "itemright=GRASS_BLOCK",
                         (builder, arg) -> builder.itemLeft(new ItemStack(Material.matchMaterial(arg)))));
         builderModifier.put(
                 "itemright",
-                new AbstractMap.SimpleEntry<>(
+                new BuilderModifier(
                         "itemleft=GRASS_BLOCK",
                         (builder, arg) -> builder.itemRight(new ItemStack(Material.matchMaterial(arg)))));
         builderModifier.put(
                 "itemoutput",
-                new AbstractMap.SimpleEntry<>(
+                new BuilderModifier(
                         "itemoutput=GRASS_BLOCK",
                         (builder, arg) -> builder.itemOutput(new ItemStack(Material.matchMaterial(arg)))));
         builderModifier.put(
                 "concurrent",
-                new AbstractMap.SimpleEntry<>(
+                new BuilderModifier(
                         "concurrent", (builder, arg) -> builder.allowConcurrentClickHandlerExecution()));
         builderModifier.put(
-                "asyncClick",
-                new AbstractMap.SimpleEntry<>(
-                        "asyncClick",
+                "asyncclick",
+                new BuilderModifier(
+                        "asyncclick",
                         (builder, arg) -> builder.onClickAsync((slot, state) -> CompletableFuture.supplyAsync(() -> {
                             int id = asyncCounter.getAndIncrement();
 
-                            state.getPlayer()
-                                    .sendMessage("[Async] Slot: " + slot + " Text: " + state.getText() + " ID: #" + id);
+                            state.player()
+                                    .sendMessage("[Async] Slot: " + slot + " Text: " + state.text() + " ID: #" + id);
 
                             try {
                                 Thread.sleep(1000);
@@ -72,50 +73,53 @@ public class AnvilGUICommand implements CommandExecutor {
                                 throw new RuntimeException(e);
                             }
 
-                            state.getPlayer().sendMessage("[Async] Done #" + id);
+                            state.player().sendMessage("[Async] Done #" + id);
 
                             return emptyList();
                         }))));
         builderModifier.put(
                 "onclick",
-                new AbstractMap.SimpleEntry<>(
+                new BuilderModifier(
                         "onclick=close closes the anvilgui\n"
                                 + "onclick=text replaces the current text with 'text'\n"
                                 + "onclick=inventory opens the own inventory",
                         (builder, arg) -> builder.onClick((slot, state) -> {
-                            state.getPlayer().sendMessage("Slot: " + slot + " Text: " + state.getText());
+                            state.player().sendMessage("Slot: " + slot + " Text: " + state.text());
                             if (slot != AnvilGUI.Slot.OUTPUT) {
                                 return emptyList();
                             }
 
-                            switch (arg.toLowerCase(Locale.ROOT)) {
-                                default:
-                                    return emptyList();
-                                case "close":
-                                    return singletonList(AnvilGUI.ResponseAction.close());
-                                case "text":
-                                    return singletonList(AnvilGUI.ResponseAction.replaceInputText("text"));
-                                case "inventory":
-                                    return singletonList(AnvilGUI.ResponseAction.openInventory(
-                                            state.getPlayer().getInventory()));
-                            }
+                            return switch (arg.toLowerCase(Locale.ROOT)) {
+                                default -> emptyList();
+                                case "close" -> singletonList(AnvilGUI.ResponseAction.close());
+                                case "text" -> singletonList(AnvilGUI.ResponseAction.replaceInputText("text"));
+                                case "inventory" -> singletonList(AnvilGUI.ResponseAction.openInventory(
+                                        state.player().getInventory()));
+                            };
                         })));
+        builderModifier.put("interactableslots",
+                new BuilderModifier("interactableslots=0,1", ((builder, arg) -> {
+                    String[] parts = arg.split(",");
+                    int[] slots = new int[parts.length];
+                    for (int i = 0; i < parts.length; i++) {
+                        slots[i] = Integer.parseInt(parts[i]);
+                    }
+                    builder.interactableSlots(slots);
+                })));
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) return false;
+        if (!(sender instanceof Player player)) return false;
         if (args.length == 0) {
-            builderModifier.values().stream().map(Map.Entry::getKey).forEach(sender::sendMessage);
+            builderModifier.values().stream().map(BuilderModifier::example).forEach(sender::sendMessage);
             return true;
         }
 
-        Player player = (Player) sender;
-
-        AnvilGUI.Builder builder = new AnvilGUI.Builder().plugin(plugin);
+        AnvilGUI.Builder builder = AnvilGUI.builder().plugin(plugin);
 
         builder.onClick((slot, state) -> {
-            state.getPlayer().sendMessage("Slot: " + slot + " Text: " + state.getText());
+            state.player().sendMessage("Slot: " + slot + " Text: " + state.text());
             return emptyList();
         });
 
@@ -128,15 +132,17 @@ public class AnvilGUICommand implements CommandExecutor {
             }
 
             if (builderModifier.containsKey(key)) {
-                builderModifier.get(key).getValue().accept(builder, value);
+                builderModifier.get(key).modifier().accept(builder, value);
             } else {
                 player.sendMessage("BuilderModifier " + key + " not found");
             }
         }
 
-        builder.onClose(state -> state.getPlayer().sendMessage("Closed"));
+        builder.onClose(state -> state.player().sendMessage("Closed"));
 
         builder.open(player);
         return true;
     }
+
+    private record BuilderModifier(String example, BiConsumer<AnvilGUI.Builder, String> modifier) {}
 }
