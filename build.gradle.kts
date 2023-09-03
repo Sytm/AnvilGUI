@@ -13,7 +13,7 @@ spotless {
     java {
         target("**/*.java")
 
-        palantirJavaFormat()
+        palantirJavaFormat().style("GOOGLE")
         removeUnusedImports()
         formatAnnotations()
         importOrder()
