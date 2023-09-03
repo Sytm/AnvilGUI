@@ -15,6 +15,7 @@ spotless {
 
         palantirJavaFormat()
         removeUnusedImports()
+        formatAnnotations()
         importOrder()
     }
     kotlin {

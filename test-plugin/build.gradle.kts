@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    api("org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT")
+    api("io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT")
     implementation(project(":anvilgui"))
 }
 
@@ -18,8 +18,4 @@ tasks {
     }
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
+java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }

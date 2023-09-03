@@ -3,10 +3,7 @@ package net.wesjd.anvilgui;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
-import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
-import net.md_5.bungee.api.chat.BaseComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -122,7 +119,7 @@ public final class AnvilGUI {
         this.title = title;
         this.initialContents = initialContents;
         this.preventClose = preventClose;
-        this.interactableSlots = Collections.unmodifiableSet(interactableSlots);
+        this.interactableSlots = interactableSlots;
         this.closeListener = closeListener;
         this.concurrentClickHandlerExecution = concurrentClickHandlerExecution;
         this.clickHandler = clickHandler;
@@ -228,9 +225,6 @@ public final class AnvilGUI {
 
             ItemStack result = initialContents[Slot.OUTPUT];
             if (result != null) {
-                result = result.clone();
-                result.editMeta(meta ->
-                        meta.displayName(Component.text(getRenameText())));
                 event.setResult(result);
             }
         }
@@ -282,11 +276,8 @@ public final class AnvilGUI {
                                 AnvilGUI.this::runNextTick)
                         .handle((results, exception) -> {
                             if (exception != null) {
-                                plugin.getLogger()
-                                        .log(
-                                                Level.SEVERE,
-                                                "An exception occurred in the AnvilGUI clickHandler",
-                                                exception);
+                                plugin.getSLF4JLogger()
+                                        .error("An exception occurred in the AnvilGUI clickHandler", exception);
                             }
                             // Whether an exception occurred or not, set running to false
                             clickHandlerRunning = false;
@@ -300,8 +291,10 @@ public final class AnvilGUI {
             if (event.getInventory().equals(inventory)) {
                 for (int slot : Slot.values()) {
                     if (event.getRawSlots().contains(slot)) {
-                        event.setCancelled(!interactableSlots.contains(slot));
-                        break;
+                        if (!interactableSlots.contains(slot)) {
+                            event.setCancelled(true);
+                            return;
+                        }
                     }
                 }
             }
@@ -390,11 +383,10 @@ public final class AnvilGUI {
          *
          * @param closeListener An {@link Consumer} that is called when the anvil GUI is closed
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException when the closeListener is null
+         * @throws NullPointerException when the closeListener is null
          */
         public @NotNull Builder onClose(@NotNull Consumer<@NotNull StateSnapshot> closeListener) {
-            Objects.requireNonNull(closeListener, "closeListener cannot be null");
-            this.closeListener = closeListener;
+            this.closeListener = Objects.requireNonNull(closeListener, "closeListener");
             return this;
         }
 
@@ -410,11 +402,10 @@ public final class AnvilGUI {
          *                     and the response is a {@link CompletableFuture} that will eventually return a
          *                     list of {@link ResponseAction} to execute in the order that they are supplied.
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException when the function supplied is null
+         * @throws NullPointerException when the function supplied is null
          */
         public @NotNull Builder onClickAsync(@NotNull ClickHandler clickHandler) {
-            Objects.requireNonNull(clickHandler, "click function cannot be null");
-            this.clickHandler = clickHandler;
+            this.clickHandler = Objects.requireNonNull(clickHandler, "clickHandler");
             return this;
         }
 
@@ -441,13 +432,12 @@ public final class AnvilGUI {
          *                     and the response is a list of {@link ResponseAction} to execute in the order
          *                     that they are supplied.
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException when the function supplied is null
+         * @throws NullPointerException when the function supplied is null
          */
         public @NotNull Builder onClick(
-                @NotNull
-                        BiFunction<@NotNull Integer, @NotNull StateSnapshot, @NotNull List<@NotNull ResponseAction>>
+                @NotNull BiFunction<@NotNull Integer, @NotNull StateSnapshot, @NotNull List<@NotNull ResponseAction>>
                                 clickHandler) {
-            Objects.requireNonNull(clickHandler, "click function cannot be null");
+            Objects.requireNonNull(clickHandler, "clickHandler");
             this.clickHandler =
                     (slot, stateSnapshot) -> CompletableFuture.completedFuture(clickHandler.apply(slot, stateSnapshot));
             return this;
@@ -458,11 +448,10 @@ public final class AnvilGUI {
          *
          * @param plugin The {@link Plugin} this anvil GUI is associated with
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the plugin is null
+         * @throws NullPointerException if the plugin is null
          */
         public @NotNull Builder plugin(@NotNull Plugin plugin) {
-            Objects.requireNonNull(plugin, "Plugin cannot be null");
-            this.plugin = plugin;
+            this.plugin = Objects.requireNonNull(plugin, "plugin");
             return this;
         }
 
@@ -471,11 +460,10 @@ public final class AnvilGUI {
          *
          * @param text The initial name of the item in the anvil
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the text is null
+         * @throws NullPointerException if the text is null
          */
         public @NotNull Builder text(@NotNull String text) {
-            Objects.requireNonNull(text, "Text cannot be null");
-            this.itemText = Component.text(text);
+            this.itemText = Component.text(Objects.requireNonNull(text, "text"));
             return this;
         }
 
@@ -484,11 +472,10 @@ public final class AnvilGUI {
          *
          * @param text The initial name of the item in the anvil
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the text is null
+         * @throws NullPointerException if the text is null
          */
         public @NotNull Builder text(@NotNull Component text) {
-            Objects.requireNonNull(text, "Text cannot be null");
-            this.itemText = text;
+            this.itemText = Objects.requireNonNull(text, "text");
             return this;
         }
 
@@ -499,11 +486,10 @@ public final class AnvilGUI {
          *
          * @param title The title that is to be displayed to the user
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the title is null
+         * @throws NullPointerException if the title is null
          */
         public @NotNull Builder title(@NotNull String title) {
-            Objects.requireNonNull(title, "title cannot be null");
-            this.title = Component.text(title);
+            this.title = Component.text(Objects.requireNonNull(title, "title"));
             return this;
         }
 
@@ -512,28 +498,10 @@ public final class AnvilGUI {
          *
          * @param title The title that is to be displayed to the user
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the title is null
+         * @throws NullPointerException if the title is null
          */
         public @NotNull Builder title(@NotNull Component title) {
-            Objects.requireNonNull(title, "title cannot be null");
-            this.title = title;
-            return this;
-        }
-
-        /**
-         * Sets the AnvilGUI title that is to be displayed to the user.
-         * <br>
-         * The provided json will be parsed into rich chat components.
-         *
-         * @param json The title that is to be displayed to the user
-         * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the title is null
-         * @see net.md_5.bungee.chat.ComponentSerializer#toString(BaseComponent)
-         */
-        @Deprecated
-        public @NotNull Builder jsonTitle(@NotNull String json) {
-            Objects.requireNonNull(json, "json cannot be null");
-            this.title = GsonComponentSerializer.gson().deserialize(json);
+            this.title = Objects.requireNonNull(title, "title");
             return this;
         }
 
@@ -542,11 +510,10 @@ public final class AnvilGUI {
          *
          * @param item The {@link ItemStack} to be put in the first slot
          * @return The {@link Builder} instance
-         * @throws IllegalArgumentException if the {@link ItemStack} is null
+         * @throws NullPointerException if the item is null
          */
         public @NotNull Builder itemLeft(@NotNull ItemStack item) {
-            Objects.requireNonNull(item, "item cannot be null");
-            this.itemLeft = item;
+            this.itemLeft = Objects.requireNonNull(item, "item").clone();
             return this;
         }
 
@@ -555,9 +522,10 @@ public final class AnvilGUI {
          *
          * @param item The {@link ItemStack} to be put in the second slot
          * @return The {@link Builder} instance
+         * @throws NullPointerException if the item is null
          */
         public @NotNull Builder itemRight(@NotNull ItemStack item) {
-            this.itemRight = item;
+            this.itemRight = Objects.requireNonNull(item, "item").clone();
             return this;
         }
 
@@ -566,9 +534,10 @@ public final class AnvilGUI {
          *
          * @param item The {@link ItemStack} to be put in the output slot
          * @return The {@link Builder} instance
+         * @throws NullPointerException if the item is null
          */
         public @NotNull Builder itemOutput(@NotNull ItemStack item) {
-            this.itemOutput = item;
+            this.itemOutput = Objects.requireNonNull(item, "item").clone();
             return this;
         }
 
@@ -577,12 +546,13 @@ public final class AnvilGUI {
          *
          * @param player The {@link Player} the anvil GUI should open for
          * @return The {@link AnvilGUI} instance from this builder
-         * @throws IllegalArgumentException when the onClick function, plugin, or player is null
+         * @throws NullPointerException if the player is null
+         * @throws NullPointerException when the clickHandler or plugin has not been set yet
          */
         public @NotNull AnvilGUI open(@NotNull Player player) {
-            Objects.requireNonNull(plugin, "Plugin cannot be null");
-            Objects.requireNonNull(clickHandler, "click handler cannot be null");
-            Objects.requireNonNull(player, "Player cannot be null");
+            Objects.requireNonNull(plugin, "Plugin must be set");
+            Objects.requireNonNull(clickHandler, "clickHandler must be set");
+            Objects.requireNonNull(player, "player");
 
             if (itemText != null) {
                 if (itemLeft == null) {
@@ -623,8 +593,10 @@ public final class AnvilGUI {
                     @NotNull StateSnapshot,
                     @NotNull CompletableFuture<@NotNull List<@NotNull ResponseAction>>> {}
 
-    /** An action to run in response to a player clicking the output slot in the GUI. This interface is public
-     * and permits you, the developer, to add additional response features easily to your custom AnvilGUIs. */
+    /**
+     * An action to run in response to a player clicking the output slot in the GUI. This interface is public
+     * and permits you, the developer, to add additional response features easily to your custom AnvilGUIs.
+     */
     @FunctionalInterface
     public interface ResponseAction extends BiConsumer<@NotNull AnvilGUI, @NotNull Player> {
 
@@ -636,11 +608,11 @@ public final class AnvilGUI {
          *
          * @param text The text to write in the input box
          * @return The {@link ResponseAction} to achieve the text replacement
-         * @throws IllegalArgumentException when the text is null
+         * @throws NullPointerException when the text is null
          * @throws IllegalStateException when the slots {@link Slot#INPUT_LEFT} and {@link Slot#OUTPUT} are <code>null</code>
          */
         static @NotNull ResponseAction replaceInputText(@NotNull String text) {
-            Objects.requireNonNull(text, "text cannot be null");
+            Objects.requireNonNull(text, "text");
             return (anvilgui, player) -> {
                 ItemStack item = anvilgui.getInventory().getItem(Slot.OUTPUT);
                 if (item == null) {
@@ -677,17 +649,19 @@ public final class AnvilGUI {
 
         /**
          * Open another inventory
+         *
          * @param otherInventory The inventory to open
          * @return The {@link ResponseAction} to achieve the inventory open
-         * @throws IllegalArgumentException when the otherInventory is null
+         * @throws NullPointerException when the otherInventory is null
          */
         static @NotNull ResponseAction openInventory(@NotNull Inventory otherInventory) {
-            Objects.requireNonNull(otherInventory, "otherInventory cannot be null");
+            Objects.requireNonNull(otherInventory, "otherInventory");
             return (anvilgui, player) -> player.openInventory(otherInventory);
         }
 
         /**
          * Close the AnvilGUI
+         *
          * @return The {@link ResponseAction} to achieve closing the AnvilGUI
          */
         static @NotNull ResponseAction close() {
@@ -696,12 +670,13 @@ public final class AnvilGUI {
 
         /**
          * Run the provided runnable
+         *
          * @param runnable The runnable to run
          * @return The {@link ResponseAction} to achieve running the runnable
-         * @throws IllegalArgumentException when the runnable is null
+         * @throws NullPointerException when the runnable is null
          */
         static @NotNull ResponseAction run(@NotNull Runnable runnable) {
-            Objects.requireNonNull(runnable, "runnable cannot be null");
+            Objects.requireNonNull(runnable, "runnable");
             return (anvilgui, player) -> runnable.run();
         }
     }
@@ -736,7 +711,7 @@ public final class AnvilGUI {
          * @return The array containing all possible anvil slots
          */
         public static int[] values() {
-            return values;
+            return values.clone();
         }
     }
 
@@ -763,64 +738,13 @@ public final class AnvilGUI {
          * @return The snapshot
          */
         private static StateSnapshot fromAnvilGUI(AnvilGUI anvilGUI) {
-            final Inventory inventory = anvilGUI.getInventory();
+            final AnvilInventory inventory = anvilGUI.getInventory();
             return new StateSnapshot(
                     anvilGUI.getRenameText(),
-                    itemNotNull(inventory.getItem(Slot.INPUT_LEFT)).clone(),
-                    itemNotNull(inventory.getItem(Slot.INPUT_RIGHT)).clone(),
-                    itemNotNull(inventory.getItem(Slot.OUTPUT)).clone(),
+                    itemNotNull(inventory.getFirstItem()).clone(),
+                    itemNotNull(inventory.getSecondItem()).clone(),
+                    itemNotNull(inventory.getResult()).clone(),
                     anvilGUI.player);
-        }
-
-        /**
-         * It returns the item in the left combine slot of the gui
-         *
-         * @return The leftItem
-         */
-        @Deprecated
-        public @NotNull ItemStack getLeftItem() {
-            return leftItem;
-        }
-
-        /**
-         * It returns the item in the right combine slot of the gui
-         *
-         * @return The rightItem
-         */
-        @Deprecated
-        public @NotNull ItemStack getRightItem() {
-            return rightItem;
-        }
-
-        /**
-         * It returns the output item that would have been the result
-         * by combining the left and right one
-         *
-         * @return The outputItem
-         */
-        @Deprecated
-        public @NotNull ItemStack getOutputItem() {
-            return outputItem;
-        }
-
-        /**
-         * It returns the player that clicked onto the output slot
-         *
-         * @return The player
-         */
-        @Deprecated
-        public @NotNull Player getPlayer() {
-            return player;
-        }
-
-        /**
-         * It returns the text the player typed into the rename field
-         *
-         * @return The text of the rename field
-         */
-        @Deprecated
-        public @NotNull String getText() {
-            return text;
         }
     }
 }

@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Material;
@@ -20,15 +21,13 @@ public class AnvilGUICommand implements CommandExecutor {
     private final AtomicInteger asyncCounter = new AtomicInteger();
     private final TestPlugin plugin;
 
-    private final Map<String, BuilderModifier> builderModifier =
-            new HashMap<>();
+    private final Map<String, BuilderModifier> builderModifier = new HashMap<>();
 
     public AnvilGUICommand(TestPlugin plugin) {
         this.plugin = plugin;
 
         builderModifier.put(
-                "preventclose",
-                new BuilderModifier("preventclose", (builder, arg) -> builder.preventClose()));
+                "preventclose", new BuilderModifier("preventclose", (builder, arg) -> builder.preventClose()));
         builderModifier.put("title", new BuilderModifier("title=Some-Text", AnvilGUI.Builder::title));
         builderModifier.put(
                 "rainbowtitle",
@@ -36,27 +35,34 @@ public class AnvilGUICommand implements CommandExecutor {
                         "rainbowtitle",
                         (builder, arg) ->
                                 builder.title(MiniMessage.miniMessage().deserialize("<rainbow>Rainbow Title"))));
-        builderModifier.put(
-                "text", new BuilderModifier("text=Some-Text-for-the-item", AnvilGUI.Builder::text));
+        builderModifier.put("text", new BuilderModifier("text=Some-Text-for-the-item", AnvilGUI.Builder::text));
         builderModifier.put(
                 "itemleft",
                 new BuilderModifier(
                         "itemright=GRASS_BLOCK",
                         (builder, arg) -> builder.itemLeft(new ItemStack(Material.matchMaterial(arg)))));
-        builderModifier.put(
-                "itemright",
-                new BuilderModifier(
-                        "itemleft=GRASS_BLOCK",
-                        (builder, arg) -> builder.itemRight(new ItemStack(Material.matchMaterial(arg)))));
-        builderModifier.put(
-                "itemoutput",
-                new BuilderModifier(
-                        "itemoutput=GRASS_BLOCK",
-                        (builder, arg) -> builder.itemOutput(new ItemStack(Material.matchMaterial(arg)))));
+        builderModifier.put("itemright", new BuilderModifier("itemleft=GRASS_BLOCK", (builder, arg) -> {
+            ItemStack stack = new ItemStack(Material.matchMaterial(arg));
+            stack.editMeta(meta -> meta.displayName(Component.text("Custom right item")));
+            builder.itemRight(stack);
+        }));
+        builderModifier.put("itemoutput", new BuilderModifier("itemoutput=GRASS_BLOCK", (builder, arg) -> {
+            ItemStack stack = new ItemStack(Material.matchMaterial(arg));
+            stack.editMeta(meta -> meta.displayName(Component.text("Custom output item")));
+            builder.itemOutput(stack);
+        }));
+        builderModifier.put("items", new BuilderModifier("items", (builder, arg) -> {
+            ItemStack left = new ItemStack(Material.GREEN_WOOL),
+                    right = new ItemStack(Material.YELLOW_WOOL),
+                    output = new ItemStack(Material.RED_WOOL);
+            left.editMeta(meta -> meta.displayName(Component.text("Custom left item")));
+            right.editMeta(meta -> meta.displayName(Component.text("Custom right item")));
+            output.editMeta(meta -> meta.displayName(Component.text("Custom output item")));
+            builder.itemLeft(left).itemRight(right).itemOutput(output);
+        }));
         builderModifier.put(
                 "concurrent",
-                new BuilderModifier(
-                        "concurrent", (builder, arg) -> builder.allowConcurrentClickHandlerExecution()));
+                new BuilderModifier("concurrent", (builder, arg) -> builder.allowConcurrentClickHandlerExecution()));
         builderModifier.put(
                 "asyncclick",
                 new BuilderModifier(
@@ -97,15 +103,14 @@ public class AnvilGUICommand implements CommandExecutor {
                                         state.player().getInventory()));
                             };
                         })));
-        builderModifier.put("interactableslots",
-                new BuilderModifier("interactableslots=0,1", ((builder, arg) -> {
-                    String[] parts = arg.split(",");
-                    int[] slots = new int[parts.length];
-                    for (int i = 0; i < parts.length; i++) {
-                        slots[i] = Integer.parseInt(parts[i]);
-                    }
-                    builder.interactableSlots(slots);
-                })));
+        builderModifier.put("interactableslots", new BuilderModifier("interactableslots=0,1", ((builder, arg) -> {
+            String[] parts = arg.split(",");
+            int[] slots = new int[parts.length];
+            for (int i = 0; i < parts.length; i++) {
+                slots[i] = Integer.parseInt(parts[i]);
+            }
+            builder.interactableSlots(slots);
+        })));
     }
 
     @Override
