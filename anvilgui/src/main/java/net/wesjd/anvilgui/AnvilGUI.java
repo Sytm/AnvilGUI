@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -637,20 +638,32 @@ public final class AnvilGUI {
       };
     }
 
-    /* Awaiting Paper #9330
-    static @NotNull ResponseAction updateTitle(@NotNull Component title, boolean preserveRenameText) {
-        Objects.requireNonNull(title, "title cannot be null");
-        return (anvilGUI, player) -> {
-            String renameText = anvilGUI.getRenameText();
-            player.getOpenInventory().title(title);
-            if (preserveRenameText) {
-                ItemStack firstItem = anvilGUI.getInventory().getFirstItem();
-                if (firstItem != null) {
-                    firstItem.editMeta(meta -> meta.displayName(Component.text(renameText)));
-                }
-            }
-        };
-    }*/
+    /**
+     * Updates the title of the AnvilGUI to the new one.
+     *
+     * @param title The new title to display
+     * @param preserveRenameText Whether to preserve the entered rename text
+     * @throws NullPointerException when literalTitle is null
+     * @return The {@link ResponseAction} to achieve the title update
+     * @see Builder#title(String)
+     */
+    static @NotNull ResponseAction updateTitle(
+        @NotNull Component title, boolean preserveRenameText) {
+      Objects.requireNonNull(title, "title");
+      return (anvilGUI, player) -> {
+        String renameText = anvilGUI.getRenameText();
+        player
+            .getOpenInventory()
+            .setTitle(LegacyComponentSerializer.legacySection().serialize(title));
+        // player.getOpenInventory().title(title); Awaiting Paper #9330
+        if (preserveRenameText) {
+          ItemStack firstItem = anvilGUI.getInventory().getFirstItem();
+          if (firstItem != null) {
+            firstItem.editMeta(meta -> meta.displayName(Component.text(renameText)));
+          }
+        }
+      };
+    }
 
     /**
      * Open another inventory

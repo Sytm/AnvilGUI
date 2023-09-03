@@ -1,27 +1,42 @@
 plugins {
-    `java-library`
-    `maven-publish`
+  `java-library`
+  `maven-publish`
 }
 
 dependencies {
-    api("io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT")
-    compileOnly("org.jetbrains:annotations:24.0.1")
+  api(libs.paper)
+  compileOnly(libs.annotations)
 }
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(17) }
-    withJavadocJar()
-    withSourcesJar()
+  toolchain { languageVersion = JavaLanguageVersion.of(17) }
+  withJavadocJar()
+  withSourcesJar()
+}
+
+tasks {
+  javadoc {
+    options {
+      this as StandardJavadocDocletOptions
+      val majorVersion =
+          libs.versions.paper.get().substringBefore('-').split('.').take(2).joinToString(".")
+      links(
+          "https://jd.papermc.io/paper/${majorVersion}/",
+          "https://jd.advntr.dev/api/${libs.versions.adventure.get()}/",
+          "https://javadoc.io/doc/org.jetbrains/annotations/${libs.versions.annotations.get()}/",
+      )
+    }
+  }
 }
 
 publishing {
-    repositories {
-        maven {
-            name = "md5lukasReposilite"
+  repositories {
+    maven {
+      name = "md5lukasReposilite"
 
-            url =
-                uri(
-                    "https://repo.md5lukas.de/${
+      url =
+          uri(
+              "https://repo.md5lukas.de/${
                         if (version.toString().endsWith("-SNAPSHOT")) {
                             "snapshots"
                         } else {
@@ -29,15 +44,9 @@ publishing {
                         }
                     }")
 
-            credentials(PasswordCredentials::class)
-            authentication { create<BasicAuthentication>("basic") }
-        }
+      credentials(PasswordCredentials::class)
+      authentication { create<BasicAuthentication>("basic") }
     }
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifact(tasks.getByName("javadocJar"))
-            artifact(tasks.getByName("sourcesJar"))
-        }
-    }
+  }
+  publications { create<MavenPublication>("maven") { from(components["java"]) } }
 }
