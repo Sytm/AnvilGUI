@@ -11,6 +11,7 @@ dependencies {
 
 tasks {
   runServer { minecraftVersion(libs.versions.paper.get().substringBefore('-')) }
+  compileJava { dependsOn(":spotlessCheck") }
   shadowJar {
     archiveClassifier.set("")
 

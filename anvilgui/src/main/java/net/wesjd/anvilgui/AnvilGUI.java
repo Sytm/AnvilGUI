@@ -30,18 +30,13 @@ import org.jetbrains.annotations.NotNull;
 public final class AnvilGUI {
 
   /**
-   * The variable containing an item with air. Used when the item would be null.
-   * To keep the heap clean, this object only gets iniziaised once
-   */
-  private static final ItemStack AIR = new ItemStack(Material.AIR);
-  /**
-   * If the given ItemStack is null, return an air ItemStack, otherwise return the given ItemStack
+   * If the given ItemStack is null, return an empty ItemStack, otherwise return the given ItemStack
    *
    * @param stack The ItemStack to check
    * @return air or the given ItemStack
    */
-  private static ItemStack itemNotNull(ItemStack stack) {
-    return stack == null ? AIR : stack;
+  private static ItemStack copyItemNotNull(ItemStack stack) {
+    return stack == null ? ItemStack.empty() : stack.clone();
   }
 
   /**
@@ -228,6 +223,7 @@ public final class AnvilGUI {
       ItemStack result = initialContents[Slot.OUTPUT];
       if (result != null) {
         event.setResult(result);
+        player.updateInventory(); // Awaiting Paper #9683
       }
     }
 
@@ -292,7 +288,7 @@ public final class AnvilGUI {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
       if (event.getInventory().equals(inventory)) {
-        for (int slot : Slot.values()) {
+        for (int slot : Slot.values) {
           if (event.getRawSlots().contains(slot)) {
             if (!interactableSlots.contains(slot)) {
               event.setCancelled(true);
@@ -759,9 +755,9 @@ public final class AnvilGUI {
       final AnvilInventory inventory = anvilGUI.getInventory();
       return new StateSnapshot(
           anvilGUI.getRenameText(),
-          itemNotNull(inventory.getFirstItem()).clone(),
-          itemNotNull(inventory.getSecondItem()).clone(),
-          itemNotNull(inventory.getResult()).clone(),
+          copyItemNotNull(inventory.getFirstItem()),
+          copyItemNotNull(inventory.getSecondItem()),
+          copyItemNotNull(inventory.getResult()),
           anvilGUI.player);
     }
   }

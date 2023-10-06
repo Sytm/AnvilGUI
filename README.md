@@ -1,37 +1,63 @@
-# AnvilGUI [![Build Status](https://ci.codemc.io/job/WesJD/job/AnvilGUI/badge/icon)](https://ci.codemc.io/job/WesJD/job/AnvilGUI/)
-AnvilGUI is a library to capture user input in Minecraft through an anvil inventory. Anvil inventories within the realm
-of the Minecraft / Bukkit / Spigot / Paper API are extremely finnicky and ultimately don't support the ability to use them fully for
-the task of user input. As a result, the only way to achieve user input with an anvil inventory requires interaction with obfuscated,
-decompiled code. AnvilGUI provides a straightforward, versatile, and easy-to-use solution without having your project
-depend on version specific code.
+# AnvilGUI
+
+AnvilGUI is a library to capture user input in Minecraft through an anvil inventory without the hassle of having to
+handle every event and special case yourself.
+
+**Note: This is a fork from the original project that removes the dependency on NMS code to be compatible with future
+versions without updating**
 
 ## Requirements
-Java 8 and Bukkit / Spigot. Most server versions in the [Spigot Repository](https://hub.spigotmc.org/nexus/) are supported.
-
-### My version isn't supported
-If you are a developer, submit a pull request adding a wrapper module for your version. Otherwise, please create an issue
-on the issues tab.
+Java 17 and recent versions of Paper.
+Due to the usage of the Paper API no version dependent code is needed anymore.
 
 ## Usage
 
 ### As a dependency
 
-AnvilGUI requires the usage of Maven or a Maven compatible build system.
-```xml
-<dependency>
-    <groupId>net.wesjd</groupId>
-    <artifactId>anvilgui</artifactId>
-    <version>1.7.0-SNAPSHOT</version>
-</dependency>
+Adding the required repository and dependency in Gradle KTS:
+```kotlin
+repositories {
+  maven("https://repo.md5lukas.de/public")
+}
 
+dependencies {
+  implementation("de.md5lukas:anvilgui:2.0.0-SNAPSHOT")
+}
+```
+or Maven:
+```xml
 <repository>
-    <id>codemc-snapshots</id>
-    <url>https://repo.codemc.io/repository/maven-snapshots/</url>
+    <id>md5lukas</id>
+    <url>https://repo.md5lukas.de/public</url>
 </repository>
+
+<dependency>
+    <groupId>de.md5lukas</groupId>
+    <artifactId>anvilgui</artifactId>
+    <version>2.0.0-SNAPSHOT</version>
+</dependency>
 ```
 
 It is best to be a good citizen and relocate the dependency to within your namespace in order
-to prevent conflicts with other plugins. Here is an example of how to relocate the dependency:
+to prevent conflicts with other plugins. Here is an example of how to relocate the dependency in Gradle KTS:
+```kotlin
+plugins {
+  id("com.github.johnrengelman.shadow") version "8.1.1"
+}
+
+tasks {
+  shadowJar {
+    archiveClassifier.set("")
+    dependencies {
+      include(dependency("de.md5lukas:anvilgui"))
+    }
+    relocate("net.wesjd.anvilgui", "[YOUR_PLUGIN_PACKAGE].anvilgui") // Replace [YOUR_PLUGIN_PACKAGE] with your package name
+  }
+}
+```
+Then you can build your final plugin jar using `./gradlew shadowJar` which will produces a jar in the `build/libs/` folder
+
+or Maven:
 ```xml
 <build>
     <plugins>
@@ -49,18 +75,9 @@ to prevent conflicts with other plugins. Here is an example of how to relocate t
                         <relocations>
                             <relocation>
                                 <pattern>net.wesjd.anvilgui</pattern>
-                                <shadedPattern>[YOUR_PLUGIN_PACKAGE].anvilgui</shadedPattern> <!-- Replace [YOUR_PLUGIN_PACKAGE] with your namespace -->
+                                <shadedPattern>[YOUR_PLUGIN_PACKAGE].anvilgui</shadedPattern> <!-- Replace [YOUR_PLUGIN_PACKAGE] with your package name -->
                             </relocation>
                         </relocations>
-                        <filters>
-                            <filter>
-                                <artifact>*:*</artifact>
-                                <excludeDefaults>false</excludeDefaults>
-                                <includes>
-                                    <include>[YOUR_PLUGIN_PACKAGE].anvilgui</include>
-                                </includes>
-                            </filter>
-                        </filters>
                     </configuration>
                 </execution>
             </executions>
@@ -68,13 +85,11 @@ to prevent conflicts with other plugins. Here is an example of how to relocate t
     </plugins>
 </build>
 ```
-Note: In order to solve `<minimizeJar>` removing AnvilGUI `VerionWrapper`s from the final jar and making the library unusable,
-ensure that your `<filters>` section contains the example `<filter>` as seen above.
 
 ### In your plugin
 
 The `AnvilGUI.Builder` class is how you build an AnvilGUI.
-The following methods allow you to modify various parts of the displayed GUI. Javadocs are available [here](http://docs.wesjd.net/AnvilGUI/).
+The following methods allow you to modify various parts of the displayed GUI. Javadocs are available [here](https://repo.md5lukas.de/javadoc/snapshots/de/md5lukas/anvilgui/2.0.0-SNAPSHOT).
 
 #### `onClose(Consumer<StateSnapshot>)`
 Takes a `Consumer<StateSnapshot>` argument that is called when a player closes the anvil gui.
@@ -94,7 +109,7 @@ You must return a `List<AnvilGUI.ResponseAction>`, which could include:
 - Running generic code (`AnvilGUI.ResponseAction.run(Runnable)`)
 - Nothing! (`Collections.emptyList()`)
 
-The list of actions are ran in the order they are supplied.
+The list of actions are ran in the order they are supplied on the next server tick.
 ```java
 builder.onClick((slot, stateSnapshot) -> {
     if (slot != AnvilGUI.Slot.OUTPUT) {
@@ -116,7 +131,7 @@ builder.onClick((slot, stateSnapshot) -> {
 #### `onClickAsync(ClickHandler)`
 Takes a `ClickHandler`, a shorthand for `BiFunction<Integer, AnvilGui.StateSnapshot, CompletableFuture<AnvilGUI.ResponseAction>>`,
 that behaves exactly like `onClick()` with the difference that it returns a `CompletableFuture` and therefore allows for
-asynchronous calculation of the `ResponseAction`s.
+asynchronous calculation of the `ResponseAction`s, for example performing database accesses.
 
 ```java
 builder.onClickAsync((slot, stateSnapshot) -> CompletedFuture.supplyAsync(() -> {
@@ -161,17 +176,26 @@ builder.preventClose();
 Takes a `String` that contains what the initial text in the renaming field should be set to.
 If `itemLeft` is provided, then the display name is set to the provided text. If no `itemLeft`
 is set, then a piece of paper will be used.
+The provided text will be used literally without applying formatting.
 ```java
 builder.text("What is the meaning of life?");
+```
+
+#### `text(Component)`
+Takes a `Component` that contains what the initial text in the renaming field should be set to.
+If `itemLeft` is provided, then the display name is set to the provided text. If no `itemLeft`
+is set, then a piece of paper will be used.
+```java
+builder.text(Component.text("What is the meaning of life?", NamedTextColor.GOLD));
 ```
 
 #### `itemLeft(ItemStack)`
 Takes a custom `ItemStack` to be placed in the left input slot.
 ```java
 ItemStack stack = new ItemStack(Material.IRON_SWORD);
-ItemMeta meta = stack.getItemMeta();
-meta.setLore(Arrays.asList("Sharp iron sword"));
-stack.setItemMeta(meta);
+stack.editMeta(meta -> {
+    meta.setLore(Arrays.asList("Sharp iron sword"));
+});
 builder.itemLeft(stack);
 ```
 
@@ -179,38 +203,40 @@ builder.itemLeft(stack);
 Takes a custom `ItemStack` to be placed in the right input slot.
 ```java
 ItemStack stack = new ItemStack(Material.IRON_INGOT);
-ItemMeta meta = stack.getItemMeta();
-meta.setLore(Arrays.asList("A piece of metal"));
-stack.setItemMeta(meta);
+stack.editMeta(meta -> {
+    meta.setLore(Arrays.asList("A piece of metal"));
+});
+builder.itemRight(stack);
+```
+
+#### `itemOutput(ItemStack)`
+Takes a custom `ItemStack` to be placed in the output slot.
+This item will not be overwritten by the result of combining the input items
+```java
+ItemStack stack = new ItemStack(Material.IRON_SWORD);
+stack.editMeta(meta -> {
+    meta.setLore(Arrays.asList("An enhanced sharp iron sword"));
+});
 builder.itemRight(stack);
 ```
 
 #### `title(String)`
-Takes a `String` that will be used literally as the inventory title. Only displayed in Minecraft 1.14 and above.
+Takes a `String` that will be used literally as the inventory title.
 ```java
 builder.title("Enter your answer");
 ```
 
-#### `jsonTitle(String)`
-Takes a `String` which contains rich text components serialized as JSON.
-Useful for settings titles with hex color codes or Adventure Component interop.
-Only displayed in Minecraft 1.14 and above.
+#### `title(Component)`
+Takes a `Component` with formatting that will be used as the inventory title.
 ```java
-builder.jsonTitle("{\"text\":\"Enter your answer\",\"color\":\"green\"}")
+builder.title(MiniMessage.miniMessage().deserialize("<rainbow>A colorful title :)"));
 ```
 
 #### `plugin(Plugin)`
-Takes the `Plugin` object that is making this anvil gui. It is needed to register listeners.
+Takes the `Plugin` object that is making this anvil gui. It is needed to register listeners and
+execute tasks on the main thread scheduler.
 ```java
 builder.plugin(pluginInstance);
-```
-
-#### `mainThreadExecutor(Executor)`
-Takes an `Executor` that must execute on the main server thread.
-If the main server thread is not accessible via the Bukkit scheduler, like on Folia servers, it can be swapped for a
-Folia aware executor.
-```java
-builder.mainThreadExecutor(executor);
 ```
 
 #### `open(Player)`
@@ -222,7 +248,7 @@ builder.open(player);
 
 ### A Common Use Case Example
 ```java
-new AnvilGUI.Builder()
+AnvilGUI.builder()
     .onClose(stateSnapshot -> {
         stateSnapshot.getPlayer().sendMessage("You closed the inventory.");
     })
@@ -240,19 +266,19 @@ new AnvilGUI.Builder()
     })
     .preventClose()                                                    //prevents the inventory from being closed
     .text("What is the meaning of life?")                              //sets the text the GUI should start with
-    .title("Enter your answer.")                                       //set the title of the GUI (only works in 1.14+)
+    .title("Enter your answer.")                                       //set the title of the GUI
     .plugin(myPluginInstance)                                          //set the plugin instance
     .open(myPlayer);                                                   //opens the GUI for the player provided
 ```
 
 
 ## Development
-We use Maven to handle our dependencies. Run `mvn clean install` using Java 17 to build the project.
+We use Gradle to handle our dependencies. Run `./gradlew build` using Java 17 to build the project.
 
 ### Spotless
-The project utilizes the [Spotless Maven Plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) to
+The project utilizes the [Spotless Gradle Plugin](https://github.com/diffplug/spotless/tree/main/plugin-gradle) to
 enforce style guidelines. You will not be able to build the project if your code does not meet the guidelines.
-To fix all code formatting issues, simply run `mvn spotless:apply`.
+To fix all code formatting issues, simply run `./gradlew spotlessApply`.
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
