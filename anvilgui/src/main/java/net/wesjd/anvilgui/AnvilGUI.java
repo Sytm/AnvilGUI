@@ -250,8 +250,17 @@ public final class AnvilGUI {
         return;
       }
 
+      // Blanket cancel move events that do not originate from the anvil, because the involved slots
+      // in the anvil cannot be determined
+      if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY
+          && !event.getClickedInventory().equals(inventory)) {
+        event.setCancelled(true);
+        return;
+      }
+
+      // Using rawSlot makes sure only the top inventory is handled
       final int rawSlot = event.getRawSlot();
-      if (rawSlot < 3 || event.getAction().equals(InventoryAction.MOVE_TO_OTHER_INVENTORY)) {
+      if (rawSlot >= Slot.INPUT_LEFT && rawSlot <= Slot.OUTPUT) {
         event.setCancelled(!interactableSlots.contains(rawSlot));
         if (clickHandlerRunning && !concurrentClickHandlerExecution) {
           // A click handler is running, don't launch another one

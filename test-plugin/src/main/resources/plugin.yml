@@ -1,9 +1,8 @@
 name: AnvilGUI-TestPlugin
-version: ${project.version}
+version: ${version}
 main: net.wesjd.anvilgui.testplugin.TestPlugin
 
-# Do this, so in case the plugin is run on a newer version backwards compatability isn't enabled on Material#matchMaterial
-api-version: 1.13
+api-version: 1.20
 
 commands:
   anvilgui: {}
