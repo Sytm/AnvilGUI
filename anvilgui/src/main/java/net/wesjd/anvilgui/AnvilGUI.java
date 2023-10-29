@@ -223,8 +223,8 @@ public final class AnvilGUI {
       ItemStack result = initialContents[Slot.OUTPUT];
       if (result != null) {
         event.setResult(result);
-        player.updateInventory(); // Awaiting Paper #9683
       }
+      player.updateInventory(); // Awaiting Paper #9683
     }
 
     /**
@@ -660,7 +660,7 @@ public final class AnvilGUI {
         player
             .getOpenInventory()
             .setTitle(LegacyComponentSerializer.legacySection().serialize(title));
-        // player.getOpenInventory().title(title); Awaiting Paper #9330
+        // Awaiting Paper #9658 to be able to properly reopen a new anvil inventory
         if (preserveRenameText) {
           ItemStack firstItem = anvilGUI.getInventory().getFirstItem();
           if (firstItem != null) {
