@@ -1,14 +1,17 @@
 package net.wesjd.anvilgui;
 
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import it.unimi.dsi.fastutil.ints.IntArraySet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
@@ -18,7 +21,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredListener;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -37,6 +42,44 @@ public final class AnvilGUI {
    */
   private static ItemStack copyItemNotNull(ItemStack stack) {
     return stack == null ? ItemStack.empty() : stack.clone();
+  }
+
+  /*
+  EcoEnchants handles the Anvil override in the most stupidly possible way. It registers it's EventHandler
+  with the priority HIGHEST so no other plugin can override it's behaviour, for lets say input purposes,
+  it additionally modifies the anvil in the next server tick in a scheduled task, because really fuck other plugins
+  trying to do anything properly inside the event, so we must prevent it receiving the event at all when the event
+  has already been handled by AnvilGUI.
+
+  UberEnchants is a bit more behaving, because it only modifies the state inside the event, but just discards the
+  description of the MONITOR priority entirely, so just prevent that plugin from receiving events as well
+   */
+  private static final Set<String> STUPID_ANVIL_CLASSES = Set.of(
+      "com.willfp.ecoenchants.mechanics.AnvilSupport",
+      "me.sciguymjm.uberenchant.utils.enchanting.AnvilEvents");
+  // ThreadLocal for Folia interop
+  private static final ThreadLocal<IntSet> STUPID_ANVIL_LOCKOUT =
+      ThreadLocal.withInitial(IntArraySet::new);
+
+  static {
+    HandlerList handlerList = PrepareAnvilEvent.getHandlerList();
+    for (RegisteredListener registeredListener : handlerList.getRegisteredListeners()) {
+      if (STUPID_ANVIL_CLASSES.contains(
+          registeredListener.getListener().getClass().getName())) {
+        handlerList.unregister(registeredListener);
+        EventExecutor eventExecutor = registeredListener.getExecutor();
+        handlerList.register(new RegisteredListener(
+            registeredListener.getListener(),
+            (listener, event) -> {
+              if (!STUPID_ANVIL_LOCKOUT.get().contains(event.hashCode())) {
+                eventExecutor.execute(listener, event);
+              }
+            },
+            registeredListener.getPriority(),
+            registeredListener.getPlugin(),
+            registeredListener.isIgnoringCancelled()));
+      }
+    }
   }
 
   /**
@@ -88,6 +131,8 @@ public final class AnvilGUI {
    */
   private boolean open;
 
+  private ScheduledTask lockoutTask;
+
   /**
    * Create an AnvilGUI
    *
@@ -125,7 +170,7 @@ public final class AnvilGUI {
    * Opens the anvil GUI
    */
   private void openInventory() {
-    Bukkit.getPluginManager().registerEvents(listener, plugin);
+    plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
     final InventoryView view =
         Objects.requireNonNull(player.openAnvil(null, true), "Could not create Anvil");
@@ -138,6 +183,10 @@ public final class AnvilGUI {
     for (int i = 0; i < initialContents.length; i++) {
       inventory.setItem(i, initialContents[i]);
     }
+
+    lockoutTask = player
+        .getScheduler()
+        .runAtFixedRate(plugin, task -> STUPID_ANVIL_LOCKOUT.get().clear(), () -> {}, 1, 1);
 
     open = true;
   }
@@ -162,6 +211,8 @@ public final class AnvilGUI {
     inventory.clear(); // Prevent item drops
 
     HandlerList.unregisterAll(listener);
+
+    lockoutTask.cancel();
 
     if (closeListener != null) {
       closeListener.accept(state);
@@ -212,11 +263,13 @@ public final class AnvilGUI {
       }
     }
 
-    @EventHandler
+    // Cant make this highest because then we might run after EcoEnchants
+    @EventHandler(priority = EventPriority.HIGH)
     public void onPrepareAnvil(PrepareAnvilEvent event) {
       if (!event.getInventory().equals(inventory)) {
         return;
       }
+      STUPID_ANVIL_LOCKOUT.get().add(event.hashCode());
 
       inventory.setRepairCost(0);
 
