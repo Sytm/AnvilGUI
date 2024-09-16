@@ -7,7 +7,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.*;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,11 +15,9 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.server.PluginDisableEvent;
-import org.bukkit.inventory.AnvilInventory;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryView;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.view.AnvilView;
 import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredListener;
@@ -117,6 +114,7 @@ public final class AnvilGUI {
   /** An {@link BiFunction} that is called when a slot is clicked */
   private final ClickHandler clickHandler;
 
+  private AnvilView view;
   /**
    * The inventory that is used on the Bukkit side of things
    */
@@ -172,9 +170,9 @@ public final class AnvilGUI {
   private void openInventory() {
     plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
-    final InventoryView view =
-        Objects.requireNonNull(player.openAnvil(null, true), "Could not create Anvil");
+    view = MenuType.ANVIL.create(player, title);
     inventory = (AnvilInventory) view.getTopInventory();
+    player.openInventory(view);
 
     // We need to use setItem instead of setContents because a Minecraft ContainerAnvil
     // contains two separate inventories: the result inventory and the ingredients inventory.
@@ -234,7 +232,7 @@ public final class AnvilGUI {
    * @return The entered text
    */
   public @NotNull String getRenameText() {
-    return Objects.requireNonNullElse(inventory.getRenameText(), "");
+    return Objects.requireNonNullElse(view.getRenameText(), "");
   }
 
   private void runNextTick(@NotNull Runnable runnable) {
@@ -245,15 +243,6 @@ public final class AnvilGUI {
    * Simply holds the listeners for the GUI
    */
   private final class ListenUp implements Listener {
-
-    // Hacky way to set inventory title. Awaiting Paper #9658
-    @EventHandler
-    public void onInventoryOpen(InventoryOpenEvent event) {
-      if (open || !event.getPlayer().equals(player)) {
-        return;
-      }
-      event.titleOverride(title);
-    }
 
     // Clear inventory before server shutdown
     @EventHandler
@@ -271,7 +260,7 @@ public final class AnvilGUI {
       }
       STUPID_ANVIL_LOCKOUT.get().add(event.hashCode());
 
-      inventory.setRepairCost(0);
+      view.setRepairCost(0);
 
       ItemStack result = initialContents[Slot.OUTPUT];
       if (result != null) {
@@ -709,15 +698,21 @@ public final class AnvilGUI {
         @NotNull Component title, boolean preserveRenameText) {
       Objects.requireNonNull(title, "title");
       return (anvilGUI, player) -> {
-        String renameText = anvilGUI.getRenameText();
-        player
-            .getOpenInventory()
-            .setTitle(LegacyComponentSerializer.legacySection().serialize(title));
-        // Awaiting Paper #9658 to be able to properly reopen a new anvil inventory
+        final StateSnapshot oldState = StateSnapshot.fromAnvilGUI(anvilGUI);
+
+        anvilGUI.view = MenuType.ANVIL.create(player, anvilGUI.title);
+        AnvilInventory inventory = (AnvilInventory) anvilGUI.view.getTopInventory();
+        anvilGUI.inventory = inventory;
+
+        inventory.setFirstItem(oldState.leftItem);
+        inventory.setSecondItem(oldState.rightItem);
+        inventory.setResult(oldState.outputItem);
+
         if (preserveRenameText) {
-          ItemStack firstItem = anvilGUI.getInventory().getFirstItem();
+          ItemStack firstItem = inventory.getFirstItem();
           if (firstItem != null) {
-            firstItem.editMeta(meta -> meta.displayName(Component.text(renameText)));
+            firstItem.editMeta(meta -> meta.displayName(Component.text(oldState.text)));
+            inventory.setFirstItem(firstItem);
           }
         }
       };
