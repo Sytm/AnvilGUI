@@ -171,7 +171,7 @@ public final class AnvilGUI {
     plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
     view = MenuType.ANVIL.create(player, title);
-    inventory = (AnvilInventory) view.getTopInventory();
+    inventory = view.getTopInventory();
     player.openInventory(view);
 
     // We need to use setItem instead of setContents because a Minecraft ContainerAnvil
@@ -699,22 +699,25 @@ public final class AnvilGUI {
       Objects.requireNonNull(title, "title");
       return (anvilGUI, player) -> {
         final StateSnapshot oldState = StateSnapshot.fromAnvilGUI(anvilGUI);
+        anvilGUI.inventory.clear();
 
-        anvilGUI.view = MenuType.ANVIL.create(player, anvilGUI.title);
-        AnvilInventory inventory = (AnvilInventory) anvilGUI.view.getTopInventory();
+        anvilGUI.view = MenuType.ANVIL.create(player, title);
+        AnvilInventory inventory = anvilGUI.view.getTopInventory();
         anvilGUI.inventory = inventory;
 
-        inventory.setFirstItem(oldState.leftItem);
-        inventory.setSecondItem(oldState.rightItem);
-        inventory.setResult(oldState.outputItem);
-
         if (preserveRenameText) {
-          ItemStack firstItem = inventory.getFirstItem();
-          if (firstItem != null) {
+          ItemStack firstItem = oldState.leftItem();
+          if (!firstItem.isEmpty()) {
             firstItem.editMeta(meta -> meta.displayName(Component.text(oldState.text)));
             inventory.setFirstItem(firstItem);
           }
+        } else {
+          inventory.setFirstItem(oldState.leftItem());
         }
+        inventory.setSecondItem(oldState.rightItem());
+        inventory.setResult(oldState.outputItem());
+
+        player.openInventory(anvilGUI.view);
       };
     }
 

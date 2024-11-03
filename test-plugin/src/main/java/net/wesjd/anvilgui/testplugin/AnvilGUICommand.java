@@ -103,11 +103,15 @@ public class AnvilGUICommand implements CommandExecutor {
               }
 
               return switch (arg.toLowerCase(Locale.ROOT)) {
-                default -> emptyList();
                 case "close" -> singletonList(AnvilGUI.ResponseAction.close());
                 case "text" -> singletonList(AnvilGUI.ResponseAction.replaceInputText("text"));
+                case "title" -> singletonList(AnvilGUI.ResponseAction.updateTitle(
+                    Component.text("New and updated title"), false));
+                case "titlepreserve" -> singletonList(AnvilGUI.ResponseAction.updateTitle(
+                    Component.text("New and updated title"), true));
                 case "inventory" -> singletonList(
                     AnvilGUI.ResponseAction.openInventory(state.player().getInventory()));
+                default -> emptyList();
               };
             })));
     builderModifier.put(

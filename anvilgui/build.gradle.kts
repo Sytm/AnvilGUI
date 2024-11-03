@@ -18,8 +18,7 @@ tasks {
   javadoc {
     options {
       this as StandardJavadocDocletOptions
-      val majorVersion =
-          libs.versions.paper.get().substringBefore('-').split('.').take(2).joinToString(".")
+      val majorVersion = libs.versions.paper.get().substringBefore('-')
       links(
           "https://jd.papermc.io/paper/${majorVersion}/",
           "https://jd.advntr.dev/api/${libs.versions.adventure.get()}/",
